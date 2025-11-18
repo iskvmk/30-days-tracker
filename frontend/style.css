@@ -1,16 +1,16 @@
 :root {
-  --bg: #0b0c10;
-  --panel: #12141c;
-  --panel-muted: #171924;
-  --text: #e8ecf1;
-  --muted: #99a1b3;
-  --accent: #88ffd2;
-  --accent-strong: #38f0a4;
-  --danger: #ff7b7b;
-  --warning: #f8d477;
-  --success: #6af29f;
-  --border: rgba(255, 255, 255, 0.08);
-  --shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  --bg: #ffffff;
+  --panel: #ffffff;
+  --panel-muted: #f3f6fb;
+  --text: #0f172a;
+  --muted: #64748b;
+  --accent: #0ea5e9;
+  --accent-strong: #0369a1;
+  --danger: #ef4444;
+  --warning: #facc15;
+  --success: #22c55e;
+  --border: #e2e8f0;
+  --shadow: 0 8px 22px rgba(15, 23, 42, 0.08);
   --radius: 18px;
 }
 
@@ -21,25 +21,22 @@
 body {
   margin: 0;
   font-family: "Inter", system-ui, -apple-system, sans-serif;
-  background: radial-gradient(circle at 20% 20%, #19203d, #0b0c10 50%),
-    radial-gradient(circle at 80% 0%, #172f2f, transparent 30%),
-    radial-gradient(circle at 10% 80%, #1f2140, transparent 25%),
-    #0b0c10;
+  background: var(--bg);
   color: var(--text);
   min-height: 100vh;
 }
 
 #app {
-  max-width: 1200px;
-  margin: 32px auto;
-  padding: 0 24px 40px;
+  width: min(1180px, 100%);
+  margin: 24px auto 40px;
+  padding: 0 20px;
 }
 
 .app-shell {
   display: grid;
-  grid-template-columns: 320px 1fr;
+  grid-template-columns: 260px minmax(0, 1fr) 320px;
   gap: 16px;
-  align-items: stretch;
+  align-items: start;
 }
 
 .panel {
@@ -68,7 +65,7 @@ body {
   height: 10px;
   border-radius: 6px;
   background: var(--accent);
-  box-shadow: 0 0 0 6px rgba(136, 255, 210, 0.15);
+  box-shadow: 0 0 0 6px rgba(45, 212, 191, 0.18);
 }
 
 .section-title {
@@ -119,17 +116,17 @@ body {
   border-radius: 12px;
   cursor: pointer;
   transition: border-color 0.2s ease, transform 0.15s ease;
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.03), transparent);
+  background: #fff;
 }
 
 .month-card:hover {
-  border-color: rgba(136, 255, 210, 0.4);
+  border-color: rgba(15, 118, 110, 0.35);
   transform: translateY(-1px);
 }
 
 .month-card.active {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px rgba(136, 255, 210, 0.1);
+  border-color: rgba(15, 118, 110, 0.35);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
 }
 
 .month-title {
@@ -167,8 +164,8 @@ body {
 }
 
 .button:hover {
-  border-color: rgba(136, 255, 210, 0.4);
-  color: var(--accent);
+  border-color: rgba(15, 118, 110, 0.3);
+  color: var(--accent-strong);
 }
 
 .legend {
@@ -235,53 +232,54 @@ body {
 }
 
 .day-cell {
-  background: var(--panel);
+  background: #fff;
   border: 1px solid var(--border);
-  border-radius: 14px;
-  min-height: 90px;
-  padding: 10px;
+  border-radius: 12px;
+  min-height: 70px;
+  padding: 12px;
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  position: relative;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
   cursor: pointer;
-  transition: border-color 0.2s ease, transform 0.15s ease;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  text-align: center;
+  color: #0f172a;
 }
 
 .day-cell:hover {
-  border-color: rgba(136, 255, 210, 0.35);
   transform: translateY(-1px);
+  box-shadow: var(--shadow);
 }
 
 .day-cell.inactive {
-  opacity: 0.3;
+  background: var(--panel-muted);
+  color: var(--muted);
   cursor: default;
+  box-shadow: none;
+}
+
+.day-cell.status-success {
+  background: var(--success);
+  border-color: var(--success);
+  color: #0f172a;
+}
+
+.day-cell.status-warning {
+  background: var(--warning);
+  border-color: var(--warning);
+  color: #0f172a;
+}
+
+.day-cell.status-danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #ffffff;
 }
 
 .day-number {
+  font-size: 16px;
   font-weight: 700;
-}
-
-.status-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  border: 1px solid var(--border);
-}
-
-.status-success {
-  background: var(--success);
-}
-
-.status-warning {
-  background: var(--warning);
-}
-
-.status-danger {
-  background: var(--danger);
 }
 
 .task-list {

@@ -42,7 +42,8 @@ function buildRecurringTasks(baseTasks, targetMonth) {
       const lastDay = endOfMonth(targetMonth).getDate();
       for (let d = 1; d <= lastDay; d++) {
         const date = new Date(targetMonth.getFullYear(), targetMonth.getMonth(), d);
-        items.push({ ...task, date: formatDateKey(date) });
+        const dateKey = formatDateKey(date);
+        items.push({ ...task, id: `${task.id}-${dateKey}`, date: dateKey });
       }
     } else {
       items.push(task);
@@ -327,29 +328,11 @@ createApp({
               v-for="day in calendarDays"
               :key="day.date ? day.date : 'pad-' + Math.random()"
               class="day-cell"
-              :class="{ inactive: !day.date }"
+              :class="[day.date ? `status-${day.status}` : '', { inactive: !day.date }]"
               @click="selectDay(day)
               "
             >
               <div class="day-number">{{ day.label }}</div>
-              <div v-if="day.date" class="status-dot" :class="{
-                'status-success': day.status === 'success',
-                'status-warning': day.status === 'warning',
-                'status-danger': day.status === 'danger'
-              }"></div>
-              <div v-if="day.tasks && day.tasks.length" class="task-list">
-                <div class="task-row" v-for="task in day.tasks.slice(0, 2)" :key="task.id">
-                  <label class="checkbox">
-                    <input type="checkbox" :checked="task.completed" disabled />
-                    <span></span>
-                  </label>
-                  <div>
-                    <div class="title">{{ task.title }}</div>
-                    <div class="meta">{{ task.notes }}</div>
-                  </div>
-                </div>
-                <div v-if="day.tasks.length > 2" class="meta">+{{ day.tasks.length - 2 }} more</div>
-              </div>
             </div>
           </div>
 
