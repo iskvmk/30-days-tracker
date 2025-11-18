@@ -328,7 +328,7 @@ createApp({
               v-for="day in calendarDays"
               :key="day.date ? day.date : 'pad-' + Math.random()"
               class="day-cell"
-              :class="[day.date ? `status-${day.status}` : '', { inactive: !day.date }]"
+              :class="[day.date ? \`status-${day.status}\` : '', { inactive: !day.date }]"
               @click="selectDay(day)
               "
             >
