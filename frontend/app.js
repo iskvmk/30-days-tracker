@@ -42,7 +42,8 @@ function buildRecurringTasks(baseTasks, targetMonth) {
       const lastDay = endOfMonth(targetMonth).getDate();
       for (let d = 1; d <= lastDay; d++) {
         const date = new Date(targetMonth.getFullYear(), targetMonth.getMonth(), d);
-        items.push({ ...task, date: formatDateKey(date) });
+        const dateKey = formatDateKey(date);
+        items.push({ ...task, id: `${task.id}-${dateKey}`, date: dateKey });
       }
     } else {
       items.push(task);
