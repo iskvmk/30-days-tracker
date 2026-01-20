@@ -1,4 +1,4 @@
-const { createApp, computed, ref } = Vue;
+const { createApp, computed, ref, watch, onMounted } = Vue;
 
 const monthNames = [
   "January",
@@ -35,76 +35,62 @@ function getDayStatus(tasks) {
   return "warning";
 }
 
-function buildRecurringTasks(baseTasks, targetMonth) {
-  const items = [];
-  baseTasks.forEach((task) => {
-    if (task.recurring === "daily") {
-      const lastDay = endOfMonth(targetMonth).getDate();
-      for (let d = 1; d <= lastDay; d++) {
-        const date = new Date(targetMonth.getFullYear(), targetMonth.getMonth(), d);
-        const dateKey = formatDateKey(date);
-        items.push({ ...task, id: `${task.id}-${dateKey}`, date: dateKey });
-      }
-    } else {
-      items.push(task);
-    }
-  });
-  return items;
+function normalizeStatus(status) {
+  if (!status) return "danger";
+  return status.toLowerCase();
 }
 
 const today = new Date();
 const initialMonth = startOfMonth(today);
 
-const sampleBaseTasks = [
-  {
-    id: "t1",
-    title: "Morning planning",
-    completed: true,
-    recurring: "daily",
-    notes: "5-minute schedule check",
-    date: formatDateKey(today),
-  },
-  {
-    id: "t2",
-    title: "Code for 2 hours",
-    completed: false,
-    recurring: "daily",
-    notes: "Feature work",
-    date: formatDateKey(today),
-  },
-  {
-    id: "t3",
-    title: "Workout",
-    completed: true,
-    recurring: null,
-    notes: "Strength training",
-    date: formatDateKey(today),
-  },
-  {
-    id: "t4",
-    title: "Write a recap",
-    completed: false,
-    recurring: null,
-    notes: "End-of-day reflection",
-    date: formatDateKey(today),
-  },
-];
-
-const sampleMonthTasks = buildRecurringTasks(sampleBaseTasks, initialMonth);
-
 createApp({
   setup() {
     const currentMonth = ref(startOfMonth(initialMonth));
     const selectedDate = ref(formatDateKey(today));
-    const tasks = ref(sampleMonthTasks);
+    const monthSummary = ref(null);
+    const loading = ref(false);
+    const error = ref("");
     const expandedYears = ref(new Set([today.getFullYear()]));
 
+    async function loadMonth(date) {
+      const year = date.getFullYear();
+      const month = date.getMonth() + 1;
+      loading.value = true;
+      error.value = "";
+      try {
+        const response = await fetch(`/api/months/${year}/${month}`);
+        if (!response.ok) {
+          throw new Error(`Failed to load month: ${response.status}`);
+        }
+        const data = await response.json();
+        monthSummary.value = data;
+        const firstOfMonth = formatDateKey(startOfMonth(date));
+        if (!data.days.some((day) => day.date === selectedDate.value)) {
+          selectedDate.value = firstOfMonth;
+        }
+      } catch (err) {
+        error.value = err.message || "Failed to load month";
+      } finally {
+        loading.value = false;
+      }
+    }
+
+    const dayMap = computed(() => {
+      const map = {};
+      if (!monthSummary.value) return map;
+      monthSummary.value.days.forEach((day) => {
+        map[day.date] = day;
+      });
+      return map;
+    });
+
     const tasksByDate = computed(() => {
-      return tasks.value.reduce((acc, task) => {
-        acc[task.date] = acc[task.date] || [];
-        acc[task.date].push(task);
-        return acc;
-      }, {});
+      const map = {};
+      if (!monthSummary.value) return map;
+      monthSummary.value.days.forEach((day) => {
+        map[day.date] = day.tasks || [];
+      });
+      return map;
     });
 
     const calendarDays = computed(() => {
@@ -118,19 +104,20 @@ createApp({
       for (let day = 1; day <= end.getDate(); day++) {
         const date = new Date(start.getFullYear(), start.getMonth(), day);
         const dateKey = formatDateKey(date);
-        const dayTasks = tasksByDate.value[dateKey] || [];
+        const dayEntry = dayMap.value[dateKey];
+        const dayTasks = dayEntry?.tasks || [];
         days.push({
           label: day,
           date: dateKey,
           tasks: dayTasks,
-          status: getDayStatus(dayTasks),
+          status: normalizeStatus(dayEntry?.status || getDayStatus(dayTasks)),
         });
       }
       return days;
     });
 
     const monthStats = computed(() => {
-      const stats = { success: 0, warning: 0, danger: 0 };
+      const stats = { success: 0, warning: 0, danger: 0, longestStreak: 0 };
       const sequence = [];
       calendarDays.value
         .filter((d) => d.date)
@@ -171,8 +158,6 @@ createApp({
 
     function setMonth(index) {
       currentMonth.value = new Date(currentMonth.value.getFullYear(), index, 1);
-      const tentativeDate = new Date(currentMonth.value.getFullYear(), index, today.getDate());
-      selectedDate.value = formatDateKey(tentativeDate);
     }
 
     function goToToday() {
@@ -191,15 +176,24 @@ createApp({
       expandedYears.value = next;
     }
 
-    function toggleTask(taskId) {
-      const updated = tasks.value.map((task) => {
-        if (task.id !== taskId) return task;
-        if (new Date(task.date) < startOfToday()) {
-          return task; // locked
+    async function toggleTask(taskId) {
+      if (isLocked.value) return;
+      try {
+        const response = await fetch(`/api/tasks/${taskId}/toggle`, { method: "POST" });
+        if (!response.ok) {
+          throw new Error(`Failed to toggle task: ${response.status}`);
         }
-        return { ...task, completed: !task.completed };
-      });
-      tasks.value = updated;
+        const updated = await response.json();
+        const entry = dayMap.value[updated.date];
+        if (!entry) return;
+        const nextTasks = entry.tasks.map((task) =>
+          task.id === updated.id ? updated : task
+        );
+        entry.tasks = nextTasks;
+        entry.status = getDayStatus(nextTasks);
+      } catch (err) {
+        error.value = err.message || "Failed to toggle task";
+      }
     }
 
     function startOfToday() {
@@ -208,7 +202,11 @@ createApp({
 
     const selectedTasks = computed(() => tasksByDate.value[selectedDate.value] || []);
 
-    const selectedDayStatus = computed(() => getDayStatus(selectedTasks.value));
+    const selectedDayStatus = computed(() => {
+      const entry = dayMap.value[selectedDate.value];
+      if (entry?.status) return normalizeStatus(entry.status);
+      return getDayStatus(selectedTasks.value);
+    });
 
     const selectedDateLabel = computed(() => {
       const date = new Date(selectedDate.value);
@@ -216,6 +214,14 @@ createApp({
     });
 
     const isLocked = computed(() => new Date(selectedDate.value) < startOfToday());
+
+    watch(currentMonth, (next) => {
+      loadMonth(next);
+    });
+
+    onMounted(() => {
+      loadMonth(currentMonth.value);
+    });
 
     return {
       monthNames,
@@ -227,6 +233,8 @@ createApp({
       selectedDate,
       selectedDateLabel,
       isLocked,
+      loading,
+      error,
       selectDay,
       setMonth,
       goToToday,
@@ -336,9 +344,17 @@ createApp({
             </div>
           </div>
 
-          <div class="section-title" style="margin-top: 18px">Today's tasks</div>
+          <div class="section-title" style="margin-top: 18px">
+            Tasks for {{ selectedDateLabel }}
+          </div>
           <div class="task-list" :class="{ locked: isLocked }">
-            <div v-if="!selectedTasks.length" class="task-row">
+            <div v-if="loading" class="task-row">
+              <div class="meta">Loading tasks...</div>
+            </div>
+            <div v-if="error && !loading" class="task-row">
+              <div class="meta">{{ error }}</div>
+            </div>
+            <div v-if="!selectedTasks.length && !loading && !error" class="task-row">
               <div class="meta">No tasks logged for this day.</div>
             </div>
             <div v-for="task in selectedTasks" :key="task.id" class="task-row">
