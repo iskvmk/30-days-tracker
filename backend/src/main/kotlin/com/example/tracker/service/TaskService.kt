@@ -5,25 +5,21 @@ import com.example.tracker.model.DaySummary
 import com.example.tracker.model.MonthSummary
 import com.example.tracker.model.Stats
 import com.example.tracker.model.Task
+import com.example.tracker.repository.TaskRepository
 import org.springframework.stereotype.Service
 import java.time.LocalDate
 import java.time.YearMonth
 import java.util.UUID
 
 @Service
-class TaskService {
-    private val tasks: MutableList<Task> = mutableListOf()
-
-    init {
-        seedDemoTasks()
-    }
+class TaskService(private val repository: TaskRepository) {
 
     fun listMonth(year: Int, month: Int): MonthSummary {
         val yearMonth = YearMonth.of(year, month)
         val days = (1..yearMonth.lengthOfMonth()).map { day ->
             val date = LocalDate.of(year, month, day)
             val dateKey = date.toString()
-            val dayTasks = tasks.filter { it.date == dateKey }
+            val dayTasks = repository.findByDate(dateKey)
             DaySummary(
                 date = dateKey,
                 status = evaluateStatus(dayTasks),
@@ -36,21 +32,19 @@ class TaskService {
     }
 
     fun toggleTask(taskId: String): Task? {
-        val idx = tasks.indexOfFirst { it.id == taskId }
-        if (idx == -1) return null
-        val current = tasks[idx]
+        val current = repository.findById(taskId) ?: return null
         val today = LocalDate.now()
         if (LocalDate.parse(current.date).isBefore(today)) {
             return current // locked
         }
         val updated = current.copy(completed = !current.completed)
-        tasks[idx] = updated
+        repository.update(updated)
         return updated
     }
 
     fun addTask(task: Task): Task {
         val newTask = task.copy(id = UUID.randomUUID().toString())
-        tasks += newTask
+        repository.save(newTask)
         return newTask
     }
 
@@ -88,38 +82,5 @@ class TaskService {
             if (streak > longest) longest = streak
         }
         return Stats(success = success, warning = warning, danger = danger, longestStreak = longest)
-    }
-
-    private fun seedDemoTasks() {
-        val today = LocalDate.now()
-        val monthStart = today.withDayOfMonth(1)
-        repeat(4) { day ->
-            val date = monthStart.plusDays(day.toLong()).toString()
-            tasks += Task(
-                id = UUID.randomUUID().toString(),
-                title = "Daily planning",
-                notes = "5-minute schedule review",
-                date = date,
-                completed = day % 3 != 0,
-                recurring = "daily"
-            )
-            tasks += Task(
-                id = UUID.randomUUID().toString(),
-                title = "Ship feature work",
-                notes = "Coding sprint",
-                date = date,
-                completed = day % 2 == 0,
-                recurring = "daily"
-            )
-        }
-        val weekend = monthStart.plusDays(6)
-        tasks += Task(
-            id = UUID.randomUUID().toString(),
-            title = "Long run",
-            notes = "8km endurance",
-            date = weekend.toString(),
-            completed = false,
-            recurring = null
-        )
     }
 }
